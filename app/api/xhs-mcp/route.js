@@ -5,18 +5,32 @@ export const runtime = 'nodejs';
 export async function GET(request) {
   const url = new URL(request.url);
 
-  if (!url.searchParams.has('resolve_share') &&
-      !url.searchParams.has('img')) {
+  if (!url.searchParams.has('resolve_share')) {
     return Response.json({
       status: 'ok',
       message: 'MCP route ready'
     });
   }
 
-  return Response.json(
-    { error: 'Card endpoint not enabled yet' },
-    { status: 403 }
-  );
+  const key = process.env.MCP_KEY;
+
+  if (!key) {
+    return Response.json(
+      { error: 'MCP_KEY not configured' },
+      { status: 503 }
+    );
+  }
+
+  const auth = request.headers.get('Authorization');
+
+  if (auth !== `Bearer ${key}`) {
+    return Response.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
+  return handler(request);
 }
 
 export async function POST(request) {
