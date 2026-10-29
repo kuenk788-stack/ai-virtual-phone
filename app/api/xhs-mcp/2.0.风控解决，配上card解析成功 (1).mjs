@@ -2499,25 +2499,9 @@ export default async function handler(request, context) {
                     });
                 }
 
-                // 4. 仍为空则按 ID 自动逆向搜索补齐
+                // 分享链接解析仅请求该笔记，不自动调用搜索。
                 if (!note.title && !note.desc) {
-                    const sRes = await callCore("search", { keyword: noteId, page: 1 }, env);
-                    const hit = sRes?.feeds?.[0];
-                    if (hit) {
-                        const hitCover = hit.cover?.url_default || hit.cover?.url || "";
-                        return json({
-                            ok: true,
-                            noteId,
-                            note: {
-                                title: hit.title || hit.display_title || "小红书笔记",
-                                author: hit.author || hit.nickname || "小红书用户",
-                                likedCount: hit.liked_count || 0,
-                                commentCount: 0,
-                                collectedCount: 0,
-                                coverUrl: hitCover ? hitCover.replace(/^http:\/\//, 'https://') : ""
-                            }
-                        });
-                    }
+                    return json({ ok: false, error: "笔记详情获取失败，请检查 XHS_COOKIE 或笔记权限" }, 422);
                 }
 
                 const user = note.user || {};
@@ -2534,7 +2518,15 @@ export default async function handler(request, context) {
                         likedCount: interact.liked_count ?? interact.likedCount ?? 0,
                         commentCount: interact.comment_count ?? interact.commentCount ?? 0,
                         collectedCount: interact.collected_count ?? interact.collectedCount ?? 0,
-                        coverUrl: cover ? cover.replace(/^http:\/\//, 'https://') : ""
+                        coverUrl: cover ? cover.replace(/^http:\/\//, 'https://') : "",
+                        content: String(note.desc || note.content || ""),
+                        desc: String(note.desc || note.content || ""),
+                        images: (Array.isArray(note.image_list) ? note.image_list : [])
+                            .map(img => img?.url_default || img?.url_pre || img?.url ||
+                                img?.info_list?.[0]?.url || "")
+                            .filter(Boolean)
+                            .map(imgUrl => imgUrl.replace(/^http:\/\//, 'https://')),
+                        imageCount: Array.isArray(note.image_list) ? note.image_list.length : 0
                     }
                 });
             } catch (e) {
